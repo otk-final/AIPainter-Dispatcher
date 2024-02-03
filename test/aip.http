@@ -1,0 +1,125 @@
+### 提交任务
+
+POST http://localhost:18080/prompt
+Authorization: xxx-xyz
+Content-Type: application/json
+
+{
+  "clientId": "xxx-xyz",
+  "prompt": {
+    "3": {
+      "inputs": {
+        "seed": 15668020870021,
+        "steps": 20,
+        "cfg": 8,
+        "sampler_name": "euler",
+        "scheduler": "normal",
+        "denoise": 1,
+        "model": [
+          "4",
+          0
+        ],
+        "positive": [
+          "6",
+          0
+        ],
+        "negative": [
+          "7",
+          0
+        ],
+        "latent_image": [
+          "5",
+          0
+        ]
+      },
+      "class_type": "KSampler"
+    },
+    "4": {
+      "inputs": {
+        "ckpt_name": "niji-动漫二次元mix_v2.0.safetensors"
+      },
+      "class_type": "CheckpointLoaderSimple"
+    },
+    "5": {
+      "inputs": {
+        "width": 512,
+        "height": 512,
+        "batch_size": 1
+      },
+      "class_type": "EmptyLatentImage"
+    },
+    "6": {
+      "inputs": {
+        "text": "beautiful scenery nature glass bottle ,purple galaxy bottle,",
+        "clip": [
+          "4",
+          1
+        ]
+      },
+      "class_type": "CLIPTextEncode"
+    },
+    "7": {
+      "inputs": {
+        "text": "text, watermark",
+        "clip": [
+          "4",
+          1
+        ]
+      },
+      "class_type": "CLIPTextEncode"
+    },
+    "8": {
+      "inputs": {
+        "samples": [
+          "3",
+          0
+        ],
+        "vae": [
+          "4",
+          2
+        ]
+      },
+      "class_type": "VAEDecode"
+    },
+    "9": {
+      "inputs": {
+        "filename_prefix": "ComfyUI",
+        "images": [
+          "8",
+          0
+        ]
+      },
+      "class_type": "SaveImage"
+    }
+  }
+}
+
+### 上传图片
+
+POST http://localhost:18080/upload/image
+Authorization: xxx-hxy
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="subfolder"
+Content-Type: text/plain
+
+xxx-hxy
+--WebAppBoundary
+Content-Disposition: form-data; name="image"; filename="ai.png"
+Content-Type: multipart/form-data
+
+< ./ai.png
+--WebAppBoundary--
+
+
+### 查询状态
+GET http://localhost:18080/history?prompt_id=8dc2598b-732c-4628-bc87-ca081677aaec
+Authorization: xxx-hxy
+
+
+### 下载图片
+GET http://localhost:18080/view?filename=ComfyUI_00130_.png&subfolder=&type=output&
+    prompt_id=8dc2598b-732c-4628-bc87-ca081677aaec
+Authorization: xxx-hxy
+

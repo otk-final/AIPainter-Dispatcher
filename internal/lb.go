@@ -14,19 +14,14 @@ import (
 	"time"
 )
 
-type QueueInf struct {
-	Running int `json:"running"`
-	Pending int `json:"pending"`
-}
-
-type Instance struct {
-	target *url.URL
-	inf    QueueInf
+type Queue struct {
+	target    *url.URL
+	remaining int
 }
 
 type LoadBalancer struct {
 	instances []*url.URL
-	queues    map[string]QueueInf
+	queues    map[string]Queue
 	queuesCh  chan string
 	mutex     *sync.Mutex
 	index     int
@@ -45,7 +40,7 @@ func NewLoadBalancer(targets ...string) *LoadBalancer {
 
 	lb := &LoadBalancer{
 		instances: urls,
-		queues:    make(map[string]QueueInf),
+		queues:    make(map[string]Queue),
 		queuesCh:  make(chan string, 10),
 		mutex:     &sync.Mutex{},
 		index:     0,
@@ -65,8 +60,7 @@ func (lb *LoadBalancer) refresh() {
 		select {
 		case host := <-lb.queuesCh:
 			inf := lb.queues[host]
-			inf.Pending++
-			inf.Running++
+			inf.remaining++
 		case <-time.After(time.Second * 5):
 
 		}
@@ -98,11 +92,7 @@ func (lb *LoadBalancer) Next() (target *url.URL) {
 	slices.SortFunc(sortTargets, func(a, b *url.URL) int {
 		qa := lb.queues[a.String()]
 		qb := lb.queues[b.String()]
-		rs := cmp.Compare(qa.Pending, qb.Pending)
-		if rs == 0 {
-			return cmp.Compare(qa.Running, qb.Running)
-		}
-		return rs
+		return cmp.Compare(qa.remaining, qb.remaining)
 	})
 
 	target = sortTargets[0]
@@ -121,7 +111,7 @@ func (lb *LoadBalancer) check() {
 	refreshQueueInf := func(target *url.URL) {
 
 		//查询队列信息
-		queueURL, _ := url.JoinPath(target.String(), "/queue")
+		queueURL, _ := url.JoinPath(target.String(), "/prompt")
 		resp, err := http.Get(queueURL)
 		if err != nil {
 			return
@@ -129,17 +119,20 @@ func (lb *LoadBalancer) check() {
 
 		defer resp.Body.Close()
 		respByte, _ := io.ReadAll(resp.Body)
-		var inf QueueInf
+
+		var inf map[string]any
 		_ = json.Unmarshal(respByte, &inf)
+		//slog.Info("queue status", "host", target.String(), "inf", string(respByte))
+		remaining := inf["exec_info"].(map[string]any)["queue_remaining"].(float64)
 
 		lb.mutex.Lock()
 		defer lb.mutex.Unlock()
 
-		lb.queues[target.String()] = inf
+		lb.queues[target.String()] = Queue{target: target, remaining: int(remaining)}
 	}
 
 	for {
-		<-time.After(time.Second * 5)
+		<-time.After(time.Second * 10)
 
 		//查询每个节点队列信息
 		for i := 0; i < len(lb.instances); i++ {

@@ -60,6 +60,22 @@ func withProxy(target *url.URL) *httputil.ReverseProxy {
 	}
 }
 
+type ComfyUIManager struct {
+	lb              *LoadBalancer
+	rdb             *redis.Client
+	inputAssetPath  string
+	outputAssetPath string
+}
+
+func NewComfyUIProxy(balancer *LoadBalancer, rdb *redis.Client, inputAssetPath string, outputAssetPath string) *ComfyUIManager {
+	return &ComfyUIManager{
+		lb:              balancer,
+		rdb:             rdb,
+		inputAssetPath:  inputAssetPath,
+		outputAssetPath: outputAssetPath,
+	}
+}
+
 func (m *ComfyUIManager) ApiPrompt(writer http.ResponseWriter, request *http.Request) {
 	userPrincipal := request.Context().Value(UserPrincipalKey).(*UserPrincipal)
 	userId := userPrincipal.UserId
@@ -68,7 +84,7 @@ func (m *ComfyUIManager) ApiPrompt(writer http.ResponseWriter, request *http.Req
 	target := m.lb.Next()
 
 	//查询长链接释放存在
-	hold := ws.GetHold(userId)
+	hold := ws.FindHold(userId)
 	if hold != nil {
 		hold.NewBind(target)
 	}
@@ -80,6 +96,8 @@ func (m *ComfyUIManager) ApiPrompt(writer http.ResponseWriter, request *http.Req
 		var respJson = map[string]any{}
 		_ = json.Unmarshal(data, &respJson)
 
+		slog.Info("api prompt response", "data", string(data))
+
 		//记录任务和目标服务器
 		promptId := respJson["prompt_id"]
 		_ = m.rdb.HMSet(context.Background(), "PROMPT_ROUTER", promptId, target.String())
@@ -88,33 +106,31 @@ func (m *ComfyUIManager) ApiPrompt(writer http.ResponseWriter, request *http.Req
 	proxy.ServeHTTP(writer, request)
 }
 
-type ComfyUIManager struct {
-	lb  *LoadBalancer
-	rdb *redis.Client
-}
-
-const AssetPath = "/Users/hxy"
-
-func NewComfyUIProxy(balancer *LoadBalancer, rdb *redis.Client) *ComfyUIManager {
-	return &ComfyUIManager{
-		lb:  balancer,
-		rdb: rdb,
-	}
-}
-
 func (m *ComfyUIManager) ApiUpload(writer http.ResponseWriter, request *http.Request) {
-	//默认服务器
-	withProxy(m.lb.instances[0]).ServeHTTP(writer, request)
+	if len(m.lb.instances) == 1 {
+		withProxy(m.lb.instances[0]).ServeHTTP(writer, request)
+		return
+	}
+	//上传本地
+	m.uploadLocal(writer, request)
 }
 
 func (m *ComfyUIManager) uploadLocal(writer http.ResponseWriter, request *http.Request) {
+
+	//max 20m
+	err := request.ParseMultipartForm(10 << 20)
+	if err != nil {
+		http.Error(writer, "Unable to parse form", http.StatusBadRequest)
+		return
+	}
+
 	form := request.MultipartForm
 	values := form.Value
 	subFolder := values["subfolder"][0]
 
 	//读取文件
 	image := form.File["image"][0]
-	imagePath := filepath.Join(AssetPath, subFolder, image.Filename)
+	imagePath := filepath.Join(m.inputAssetPath, subFolder, image.Filename)
 	f, err := image.Open()
 	if err != nil {
 		http.Error(writer, "文件解析失败", http.StatusInternalServerError)
@@ -129,9 +145,10 @@ func (m *ComfyUIManager) uploadLocal(writer http.ResponseWriter, request *http.R
 }
 
 func (m *ComfyUIManager) ApiDownload(writer http.ResponseWriter, request *http.Request) {
-	vars := mux.Vars(request)
-	promptId := vars["prompt_id"]
+	vars := request.URL.Query()
+	promptId := vars.Get("prompt_id")
 
+	slog.Info("download image", "prompt_id", promptId)
 	if promptId == "" {
 		//从本地路径下载
 		m.downloadLocal(writer, request)
@@ -151,9 +168,10 @@ func (m *ComfyUIManager) ApiDownload(writer http.ResponseWriter, request *http.R
 }
 
 func (m *ComfyUIManager) downloadLocal(writer http.ResponseWriter, request *http.Request) {
-	vars := mux.Vars(request)
+	vars := request.URL.Query()
+
 	//本地存储文件
-	filePath := filepath.Join(AssetPath, vars["subfolder"], vars["filename"])
+	filePath := filepath.Join(m.outputAssetPath, vars.Get("subfolder"), vars.Get("filename"))
 	file, err := os.Open(filePath)
 	if err != nil {
 		http.Error(writer, "文件打开失败", http.StatusInternalServerError)
@@ -177,7 +195,11 @@ func (m *ComfyUIManager) ApiHistory(writer http.ResponseWriter, request *http.Re
 	if errors.Is(err, redis.Nil) {
 		http.Error(writer, "not found", http.StatusInternalServerError)
 		return
+	} else if err != nil {
+		http.Error(writer, err.Error(), http.StatusInternalServerError)
+		return
 	}
+
 	//查询指定服务节点
 	target, _ := url.Parse(targetURI)
 	withProxy(target).ServeHTTP(writer, request)

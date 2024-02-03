@@ -3,6 +3,7 @@ package main
 import (
 	"AIPainter-Dispatcher/internal"
 	"AIPainter-Dispatcher/internal/ws"
+	"context"
 	"flag"
 	"github.com/gorilla/mux"
 	"github.com/redis/go-redis/v9"
@@ -14,9 +15,13 @@ var router = mux.NewRouter()
 
 var address = flag.String("address", ":18080", "Address")
 
-var redisConf = flag.String("redisConf", "redis://root:@localhost:6789/8", "Redis")
+var redisConf = flag.String("redisConf", "redis://:@localhost:6379/8", "Redis")
 
 var services = flag.String("targets", "http://58.49.141.134:8188", "ComfyUI")
+
+var inputAssetPath = flag.String("inputAssetPath", ".", "upload path")
+
+var outputAssetPath = flag.String("outputAssetPath", ".", "download path")
 
 func main() {
 	flag.Parse()
@@ -27,9 +32,13 @@ func main() {
 		panic(err)
 	}
 	rdb := redis.NewClient(redisOps)
+	err = rdb.Ping(context.Background()).Err()
+	if err != nil {
+		panic(err)
+	}
 
 	lb := internal.NewLoadBalancer(strings.Split(*services, " ")...)
-	proxy := internal.NewComfyUIProxy(lb, rdb)
+	proxy := internal.NewComfyUIProxy(lb, rdb, *inputAssetPath, *outputAssetPath)
 	middle := internal.NewMiddleware(rdb)
 
 	//init api router
@@ -42,7 +51,7 @@ func main() {
 	router.Path("/view").Methods("GET").HandlerFunc(proxy.ApiDownload)
 
 	//查询本地记录，不存在则调用目标服务器查询
-	router.Path("/history").Methods("POST").HandlerFunc(proxy.ApiHistory)
+	router.Path("/history/{prompt_id}").Methods("GET").HandlerFunc(proxy.ApiHistory)
 
 	router.Path("/ws").HandlerFunc(ws.NewUpgrade)
 

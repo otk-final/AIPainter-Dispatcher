@@ -5,6 +5,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/samber/lo"
 	"log/slog"
+	"net/http"
 	"net/url"
 	"sync"
 	"time"
@@ -12,6 +13,9 @@ import (
 
 var upgrade = websocket.Upgrader{
 	HandshakeTimeout: time.Second * 30,
+	CheckOrigin: func(r *http.Request) bool {
+		return true
+	},
 }
 
 var DISPATCHER = make(map[string]*UpgradeHold)
@@ -36,28 +40,47 @@ func (h *UpgradeHold) NewBind(target *url.URL) {
 		return
 	}
 
+	rawValues := &url.Values{}
+	rawValues.Add("client_id", h.userId)
+	wsURL := &url.URL{
+		Scheme:   "ws",
+		Host:     target.Host,
+		Path:     "/ws",
+		RawQuery: rawValues.Encode(),
+	}
+
 	//链接主机地址
-	wsConn, _, err := websocket.DefaultDialer.DialContext(context.Background(), target.String(), nil)
+	wsConn, _, err := websocket.DefaultDialer.DialContext(context.Background(), wsURL.String(), nil)
 	if err != nil {
+		slog.Error("websocket dail error", err)
 		return
 	}
 
 	//启动
 	hold := newConnHold(wsConn, target.Host, h.userId)
+	hold.exitHandle = func(text string) {
+		//移除当前
+		h.slaves = lo.Filter(h.slaves, func(item *ConnHold, index int) bool {
+			return item.mode != hold.mode && item.connId != hold.connId
+		})
+		//关闭连接
+		hold.free()
+	}
 	hold.start()
 
 	//监听从链接内容，发送至主链接
 	go func(hold *ConnHold) {
-		defer hold.free()
 		for {
 			select {
-			case packet := <-hold.readCh:
-				h.master.writeCh <- packet
-			case <-time.After(1 * time.Minute):
-				//空闲，则释放
-				h.slaves = lo.Filter(h.slaves, func(item *ConnHold, index int) bool {
-					return item.mode != hold.mode && item.connId != hold.connId
-				})
+			case packet, ok := <-hold.readCh:
+				//发送至主链接
+				if ok && packet != nil {
+					h.master.writeCh <- packet
+				}
+			case <-time.After(30 * time.Second):
+				//1分钟无响应，则释放用户和主机直接的链接
+				_ = hold.conn.Close()
+				return
 			}
 		}
 	}(hold)
@@ -66,25 +89,53 @@ func (h *UpgradeHold) NewBind(target *url.URL) {
 	h.slaves = append(h.slaves, hold)
 }
 
-func (h *UpgradeHold) Free() {
-	h.master.free()
-	for _, s := range h.slaves {
-		s.free()
-	}
-	delete(DISPATCHER, h.userId)
-}
+func NewUpgrade(writer http.ResponseWriter, request *http.Request) {
+	vars := request.URL.Query()
+	clientId := vars.Get("client_id")
 
-func Free(id string) {
-	if hold, ok := DISPATCHER[id]; ok {
-		hold.Free()
-	} else {
-		slog.Warn("not found connect", id)
+	//new client
+	clientConn, err := upgrade.Upgrade(writer, request, request.Header)
+	if err != nil {
+		http.Error(writer, "client upgrade err", http.StatusInternalServerError)
+		return
 	}
-}
+	slog.Info("user address", "client", clientConn.RemoteAddr())
 
-func GetHold(userId string) *UpgradeHold {
 	MUTEX.Lock()
 	defer MUTEX.Unlock()
 
-	return DISPATCHER[userId]
+	master := newConnHold(clientConn, "user", clientId)
+	master.exitHandle = func(text string) {
+		//释放当前连接，并通知子连接
+		FreeHold(clientId)
+	}
+	master.start()
+	//cache
+	DISPATCHER[clientId] = &UpgradeHold{
+		userId: clientId,
+		mutex:  &sync.Mutex{},
+		master: master,
+		slaves: make([]*ConnHold, 0),
+	}
+}
+
+func FreeHold(id string) {
+	MUTEX.Lock()
+	defer MUTEX.Unlock()
+	hold, ok := DISPATCHER[id]
+	if ok {
+		hold.master.free()
+		for _, s := range hold.slaves {
+			_ = s.conn.Close()
+		}
+		hold.slaves = make([]*ConnHold, 0)
+	}
+
+	delete(DISPATCHER, hold.userId)
+}
+
+func FindHold(id string) *UpgradeHold {
+	MUTEX.Lock()
+	defer MUTEX.Unlock()
+	return DISPATCHER[id]
 }

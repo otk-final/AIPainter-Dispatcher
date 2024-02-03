@@ -26,16 +26,18 @@ func (m *Middleware) UserAuthenticationMiddleware(handler http.Handler) http.Han
 		}
 
 		//jwt 解码
-		token, err := m.jp.Parse(authorization, nil)
-		if err != nil {
-			http.Error(writer, "Client Unauthorized", http.StatusUnauthorized)
-			return
-		}
+		//token, err := m.jp.Parse(authorization, nil)
+		//if err != nil {
+		//	http.Error(writer, "Client Unauthorized", http.StatusUnauthorized)
+		//	return
+		//}
 
-		request.WithContext(context.WithValue(request.Context(), UserPrincipalKey, &UserPrincipal{
-			UserId:   token.Header["userId"].(string),
-			UserType: token.Header["userType"].(string),
-		}))
-		handler.ServeHTTP(writer, request)
+		//mock
+		newCtx := context.WithValue(request.Context(), UserPrincipalKey, &UserPrincipal{
+			UserId:   authorization,
+			UserType: "user",
+		})
+
+		handler.ServeHTTP(writer, request.WithContext(newCtx))
 	})
 }

@@ -1,0 +1,16 @@
+
+### hxy
+WEBSOCKET ws://localhost:18080/ws?client_id=xxx-hxy
+Authorization: Bearer XXX
+Content-Type: application/json // used only for IDE highlighting.
+// Highlighting is applied for each message independently.
+
+
+
+
+### xyz
+WEBSOCKET ws://localhost:18080/ws?client_id=xxx-xyz
+Authorization: Bearer XXX
+Content-Type: application/json // used only for IDE highlighting.
+// Highlighting is applied for each message independently.
+

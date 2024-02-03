@@ -1,33 +1,25 @@
 package ws
 
 import (
-	"fmt"
-	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
-	"net/http"
-	"sync"
+	"log/slog"
 	"time"
 )
 
 type ConnHold struct {
-	mode    string
-	connId  string
-	conn    *websocket.Conn
-	readCh  chan *UpgradePacket
-	writeCh chan *UpgradePacket
+	mode       string
+	connId     string
+	conn       *websocket.Conn
+	exitCh     chan string
+	exitHandle func(signal string)
+	readCh     chan *UpgradePacket
+	writeCh    chan *UpgradePacket
 }
 
 func (h *ConnHold) free() {
-	_ = h.conn.Close()
 	close(h.readCh)
 	close(h.writeCh)
-
-	//remove
-	delete(DISPATCHER, h.Key())
-}
-
-func (h *ConnHold) Key() string {
-	return fmt.Sprintf("%s_%s", h.mode, h.connId)
+	close(h.exitCh)
 }
 
 func (h *ConnHold) start() {
@@ -35,7 +27,9 @@ func (h *ConnHold) start() {
 	go func() {
 		for {
 			msgType, msg, err := h.conn.ReadMessage()
+			//连接关闭，发送退出信号
 			if err != nil {
+				h.exitCh <- err.Error()
 				return
 			}
 			h.readCh <- &UpgradePacket{
@@ -53,10 +47,18 @@ func (h *ConnHold) start() {
 				if !ok {
 					return
 				}
+				slog.Info("send message", "mode", h.mode, "client_id", h.connId, "data", event.Byte)
 				_ = h.conn.WriteMessage(event.Type, event.Byte)
 			case <-time.After(10 * time.Second):
 			}
 		}
+	}()
+
+	//退出事件
+	go func() {
+		text := <-h.exitCh
+		slog.Info("exit", "mode", h.mode, "connId", h.connId, "reason", text)
+		h.exitHandle(text)
 	}()
 }
 
@@ -65,37 +67,12 @@ type UpgradePacket struct {
 	Byte []byte
 }
 
-func NewUpgrade(writer http.ResponseWriter, request *http.Request) {
-	vars := mux.Vars(request)
-	clientId := vars["client_id"]
-
-	//new client
-	clientConn, err := upgrade.Upgrade(writer, request, request.Header)
-	if err != nil {
-		http.Error(writer, "client upgrade err", http.StatusInternalServerError)
-		return
-	}
-
-	MUTEX.Lock()
-	defer MUTEX.Unlock()
-
-	master := newConnHold(clientConn, "user", clientId)
-	master.start()
-
-	//cache
-	DISPATCHER[clientId] = &UpgradeHold{
-		userId: clientId,
-		mutex:  &sync.Mutex{},
-		master: master,
-		slaves: make([]*ConnHold, 0),
-	}
-}
-
 func newConnHold(conn *websocket.Conn, mode string, connId string) *ConnHold {
 	return &ConnHold{
 		mode:    mode,
 		connId:  connId,
 		conn:    conn,
+		exitCh:  make(chan string),
 		readCh:  make(chan *UpgradePacket, 1),
 		writeCh: make(chan *UpgradePacket, 1),
 	}
