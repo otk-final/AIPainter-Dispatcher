@@ -1,77 +1,54 @@
 package main
 
 import (
-	"bufio"
-	"encoding/json"
-	"fmt"
-	"io/fs"
-	"io/ioutil"
-	"log"
-	"os"
+	"AIPainter-Dispatcher/internal"
+	"AIPainter-Dispatcher/internal/ws"
+	"flag"
+	"github.com/gorilla/mux"
+	"github.com/redis/go-redis/v9"
+	"net/http"
 	"strings"
 )
 
-type Traits struct {
-	Key         string           `json:"key"`
-	Name        string           `json:"name"`
-	Requirement string           `json:"requirement"`
-	Options     []*FeatureOption `json:"options"`
-}
+var router = mux.NewRouter()
 
-type FeatureOption struct {
-	Key   string `json:"key"`
-	Label string `json:"label"`
-	Value string `json:"value"`
-	Image string `json:"image"`
-}
+var address = flag.String("address", ":18080", "Address")
+
+var redisConf = flag.String("redisConf", "redis://root:@localhost:6789/8", "Redis")
+
+var services = flag.String("targets", "http://58.49.141.134:8188", "ComfyUI")
 
 func main() {
-	a := "1"
-	println("xxx", a)
-}
-func main1() {
+	flag.Parse()
 
-	f, _ := os.Open("/Users/hxy/develops/角色.ini")
-	scanner := bufio.NewScanner(f)
-
-	var features = make([]*Traits, 0)
-
-	var feature *Traits
-	for scanner.Scan() {
-		line := strings.Trim(scanner.Text(), " ")
-		if line == "" {
-			continue
-		}
-
-		//feature
-		if strings.HasPrefix(line, "@") {
-			featureTexts := strings.Split(line, "@")
-			feature = &Traits{
-				Key:         strings.Trim(featureTexts[2], " "),
-				Name:        strings.Trim(featureTexts[1], " "),
-				Requirement: "（单选项，如无特别要求，可不选）",
-				Options:     make([]*FeatureOption, 0),
-			}
-			features = append(features, feature)
-			continue
-		}
-
-		//feature enum
-		log.Println(line)
-		kv := strings.Split(line, "#")
-
-		if len(kv) < 2 {
-			continue
-		}
-
-		feature.Options = append(feature.Options, &FeatureOption{
-			Key:   fmt.Sprintf("%s@%d", feature.Key, len(feature.Options)+1),
-			Label: strings.Trim(kv[0], "\t"),
-			Value: strings.Trim(kv[1], "\t"),
-		})
+	// init redis
+	redisOps, err := redis.ParseURL(*redisConf)
+	if err != nil {
+		panic(err)
 	}
+	rdb := redis.NewClient(redisOps)
 
-	log.Println(len(features))
-	jsonBytes, _ := json.MarshalIndent(features, "", "\t")
-	_ = ioutil.WriteFile("/Users/hxy/develops/角色.json", jsonBytes, fs.ModePerm)
+	lb := internal.NewLoadBalancer(strings.Split(*services, " ")...)
+	cm := internal.NewComfyUIManager(lb, rdb)
+	middle := internal.NewMiddleware(rdb)
+
+	//init api router
+	router.Path("/prompt").Methods("POST").HandlerFunc(cm.PromptProxy)
+
+	//上传到本地，目标服务器通过分布式文件系统读取
+	router.Path("/upload/image").Methods("POST").HandlerFunc(cm.UploadProxy)
+
+	//查询本地目录
+	router.Path("/view").Methods("GET").HandlerFunc(cm.DownloadProxy)
+
+	//查询本地记录，不存在则调用目标服务器查询
+	router.Path("/history").Methods("POST").HandlerFunc(cm.HistoryProxy)
+
+	router.Path("/ws").HandlerFunc(ws.NewUpgrade)
+
+	//cors and auth
+	router.Use(mux.CORSMethodMiddleware(router), middle.UserAuthenticationMiddleware)
+
+	//start
+	_ = http.ListenAndServe(*address, router)
 }
