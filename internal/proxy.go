@@ -60,7 +60,7 @@ func withProxy(target *url.URL) *httputil.ReverseProxy {
 	}
 }
 
-func (m *ComfyUIManager) PromptProxy(writer http.ResponseWriter, request *http.Request) {
+func (m *ComfyUIManager) ApiPrompt(writer http.ResponseWriter, request *http.Request) {
 	userPrincipal := request.Context().Value(UserPrincipalKey).(*UserPrincipal)
 	userId := userPrincipal.UserId
 
@@ -95,14 +95,14 @@ type ComfyUIManager struct {
 
 const AssetPath = "/Users/hxy"
 
-func NewComfyUIManager(balancer *LoadBalancer, rdb *redis.Client) *ComfyUIManager {
+func NewComfyUIProxy(balancer *LoadBalancer, rdb *redis.Client) *ComfyUIManager {
 	return &ComfyUIManager{
 		lb:  balancer,
 		rdb: rdb,
 	}
 }
 
-func (m *ComfyUIManager) UploadProxy(writer http.ResponseWriter, request *http.Request) {
+func (m *ComfyUIManager) ApiUpload(writer http.ResponseWriter, request *http.Request) {
 	//默认服务器
 	withProxy(m.lb.instances[0]).ServeHTTP(writer, request)
 }
@@ -128,7 +128,7 @@ func (m *ComfyUIManager) uploadLocal(writer http.ResponseWriter, request *http.R
 	_ = json.NewEncoder(writer).Encode(map[string]string{"subfolder": subFolder, "filename": image.Filename, "type": "input"})
 }
 
-func (m *ComfyUIManager) DownloadProxy(writer http.ResponseWriter, request *http.Request) {
+func (m *ComfyUIManager) ApiDownload(writer http.ResponseWriter, request *http.Request) {
 	vars := mux.Vars(request)
 	promptId := vars["prompt_id"]
 
@@ -168,7 +168,7 @@ func (m *ComfyUIManager) downloadLocal(writer http.ResponseWriter, request *http
 	http.ServeContent(writer, request, fileInf.Name(), fileInf.ModTime(), file)
 }
 
-func (m *ComfyUIManager) HistoryProxy(writer http.ResponseWriter, request *http.Request) {
+func (m *ComfyUIManager) ApiHistory(writer http.ResponseWriter, request *http.Request) {
 	vars := mux.Vars(request)
 	promptId := vars["prompt_id"]
 

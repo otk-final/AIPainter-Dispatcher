@@ -29,20 +29,20 @@ func main() {
 	rdb := redis.NewClient(redisOps)
 
 	lb := internal.NewLoadBalancer(strings.Split(*services, " ")...)
-	cm := internal.NewComfyUIManager(lb, rdb)
+	proxy := internal.NewComfyUIProxy(lb, rdb)
 	middle := internal.NewMiddleware(rdb)
 
 	//init api router
-	router.Path("/prompt").Methods("POST").HandlerFunc(cm.PromptProxy)
+	router.Path("/prompt").Methods("POST").HandlerFunc(proxy.ApiPrompt)
 
 	//上传到本地，目标服务器通过分布式文件系统读取
-	router.Path("/upload/image").Methods("POST").HandlerFunc(cm.UploadProxy)
+	router.Path("/upload/image").Methods("POST").HandlerFunc(proxy.ApiUpload)
 
 	//查询本地目录
-	router.Path("/view").Methods("GET").HandlerFunc(cm.DownloadProxy)
+	router.Path("/view").Methods("GET").HandlerFunc(proxy.ApiDownload)
 
 	//查询本地记录，不存在则调用目标服务器查询
-	router.Path("/history").Methods("POST").HandlerFunc(cm.HistoryProxy)
+	router.Path("/history").Methods("POST").HandlerFunc(proxy.ApiHistory)
 
 	router.Path("/ws").HandlerFunc(ws.NewUpgrade)
 
