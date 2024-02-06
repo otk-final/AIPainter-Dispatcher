@@ -1,6 +1,6 @@
 ### 提交任务
 
-POST http://localhost:18080/prompt
+POST http://localhost:18080/comfyui/prompt
 Authorization: xxx-xyz
 Content-Type: application/json
 
@@ -96,7 +96,7 @@ Content-Type: application/json
 
 ### 上传图片
 
-POST http://localhost:18080/upload/image
+POST http://localhost:18181/comfyui/upload/image
 Authorization: xxx-hxy
 Content-Type: multipart/form-data; boundary=WebAppBoundary
 
@@ -114,12 +114,12 @@ Content-Type: multipart/form-data
 
 
 ### 查询状态
-GET http://localhost:18080/history?prompt_id=8dc2598b-732c-4628-bc87-ca081677aaec
+GET http://localhost:18080/comfyui/history/8dc2598b-732c-4628-bc87-ca081677aaec
 Authorization: xxx-hxy
 
 
 ### 下载图片
-GET http://localhost:18080/view?filename=ComfyUI_00130_.png&subfolder=&type=output&
+GET http://localhost:18080/comfyui/view?filename=ComfyUI_00130_.png&subfolder=&type=output&
     prompt_id=8dc2598b-732c-4628-bc87-ca081677aaec
 Authorization: xxx-hxy
 

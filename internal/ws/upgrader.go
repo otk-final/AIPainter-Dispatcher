@@ -50,6 +50,7 @@ func (h *UpgradeHold) NewBind(target *url.URL) {
 	}
 
 	//链接主机地址
+	slog.Info("ready connect service", wsURL.String())
 	wsConn, _, err := websocket.DefaultDialer.DialContext(context.Background(), wsURL.String(), nil)
 	if err != nil {
 		slog.Error("websocket dail error", err)
@@ -73,6 +74,7 @@ func (h *UpgradeHold) NewBind(target *url.URL) {
 		for {
 			select {
 			case packet, ok := <-hold.readCh:
+				//slog.Info("read service packet", packet)
 				//发送至主链接
 				if ok && packet != nil {
 					h.master.writeCh <- packet
@@ -99,7 +101,7 @@ func NewUpgrade(writer http.ResponseWriter, request *http.Request) {
 		http.Error(writer, "client upgrade err", http.StatusInternalServerError)
 		return
 	}
-	slog.Info("user address", "client", clientConn.RemoteAddr())
+	slog.Info("user address", " clientId", clientId, "host", clientConn.RemoteAddr())
 
 	MUTEX.Lock()
 	defer MUTEX.Unlock()
@@ -122,16 +124,15 @@ func NewUpgrade(writer http.ResponseWriter, request *http.Request) {
 func FreeHold(id string) {
 	MUTEX.Lock()
 	defer MUTEX.Unlock()
+
 	hold, ok := DISPATCHER[id]
 	if ok {
 		hold.master.free()
 		for _, s := range hold.slaves {
 			_ = s.conn.Close()
 		}
-		hold.slaves = make([]*ConnHold, 0)
+		delete(DISPATCHER, hold.userId)
 	}
-
-	delete(DISPATCHER, hold.userId)
 }
 
 func FindHold(id string) *UpgradeHold {

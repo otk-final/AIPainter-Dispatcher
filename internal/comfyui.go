@@ -9,12 +9,15 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/redis/go-redis/v9"
 	"io"
+	"log"
 	"log/slog"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 )
 
 type UserPrincipal struct {
@@ -44,35 +47,38 @@ func recodingResponse(recodingHandle func(data []byte)) func(response *http.Resp
 	}
 }
 
-func withProxy(target *url.URL) *httputil.ReverseProxy {
-	return &httputil.ReverseProxy{
-		Director: func(request *http.Request) {
-			request.URL.Scheme = target.Scheme
-			request.URL.Host = target.Host
-			request.Header.Set("X-Forwarded-Host", request.Header.Get("Host"))
-			request.Host = target.Host
-		},
-		Transport:     &http.Transport{},
-		FlushInterval: 0,
-		ErrorHandler: func(writer http.ResponseWriter, request *http.Request, err error) {
-			slog.Warn("proxy err")
-		},
-	}
-}
-
 type ComfyUIManager struct {
 	lb              *LoadBalancer
 	rdb             *redis.Client
+	PathPrefix      string
 	inputAssetPath  string
 	outputAssetPath string
+	withProxy       func(target *url.URL) *httputil.ReverseProxy
 }
 
-func NewComfyUIProxy(balancer *LoadBalancer, rdb *redis.Client, inputAssetPath string, outputAssetPath string) *ComfyUIManager {
+func NewComfyUIProxy(pathPrefix string, balancer *LoadBalancer, rdb *redis.Client, inputAssetPath string, outputAssetPath string) *ComfyUIManager {
 	return &ComfyUIManager{
+		PathPrefix:      pathPrefix,
 		lb:              balancer,
 		rdb:             rdb,
 		inputAssetPath:  inputAssetPath,
 		outputAssetPath: outputAssetPath,
+		withProxy: func(target *url.URL) *httputil.ReverseProxy {
+			return &httputil.ReverseProxy{
+				Director: func(request *http.Request) {
+					request.URL.Scheme = target.Scheme
+					request.URL.Host = target.Host
+					request.URL.Path = strings.TrimPrefix(request.URL.Path, pathPrefix)
+					request.Header.Set("X-Forwarded-Host", request.Header.Get("Host"))
+					request.Host = target.Host
+				},
+				Transport:     &http.Transport{},
+				FlushInterval: 0,
+				ErrorHandler: func(writer http.ResponseWriter, request *http.Request, err error) {
+					slog.Warn("Proxy err")
+				},
+			}
+		},
 	}
 }
 
@@ -89,7 +95,7 @@ func (m *ComfyUIManager) ApiPrompt(writer http.ResponseWriter, request *http.Req
 		hold.NewBind(target)
 	}
 
-	proxy := withProxy(target)
+	proxy := m.withProxy(target)
 	proxy.ModifyResponse = recodingResponse(func(data []byte) {
 
 		//解析响应
@@ -100,7 +106,11 @@ func (m *ComfyUIManager) ApiPrompt(writer http.ResponseWriter, request *http.Req
 
 		//记录任务和目标服务器
 		promptId := respJson["prompt_id"]
-		_ = m.rdb.HMSet(context.Background(), "PROMPT_ROUTER", promptId, target.String())
+		err := m.rdb.HMSet(context.Background(), "PROMPT_ROUTER_"+userId, promptId, target.String())
+		if err != nil {
+			log.Print(err)
+		}
+		_ = m.rdb.Expire(context.Background(), "PROMPT_ROUTER_"+userId, 5*time.Minute)
 	})
 
 	proxy.ServeHTTP(writer, request)
@@ -108,11 +118,11 @@ func (m *ComfyUIManager) ApiPrompt(writer http.ResponseWriter, request *http.Req
 
 func (m *ComfyUIManager) ApiUpload(writer http.ResponseWriter, request *http.Request) {
 	if len(m.lb.instances) == 1 {
-		withProxy(m.lb.instances[0]).ServeHTTP(writer, request)
-		return
+		m.withProxy(m.lb.instances[0]).ServeHTTP(writer, request)
+	} else {
+		//上传本地
+		m.uploadLocal(writer, request)
 	}
-	//上传本地
-	m.uploadLocal(writer, request)
 }
 
 func (m *ComfyUIManager) uploadLocal(writer http.ResponseWriter, request *http.Request) {
@@ -145,6 +155,9 @@ func (m *ComfyUIManager) uploadLocal(writer http.ResponseWriter, request *http.R
 }
 
 func (m *ComfyUIManager) ApiDownload(writer http.ResponseWriter, request *http.Request) {
+	userPrincipal := request.Context().Value(UserPrincipalKey).(*UserPrincipal)
+	userId := userPrincipal.UserId
+
 	vars := request.URL.Query()
 	promptId := vars.Get("prompt_id")
 
@@ -156,7 +169,7 @@ func (m *ComfyUIManager) ApiDownload(writer http.ResponseWriter, request *http.R
 	}
 
 	//查询任务ID 之前路由到哪个节点
-	targetURI, err := m.rdb.HGet(context.Background(), "PROMPT_ROUTER", promptId).Result()
+	targetURI, err := m.rdb.HGet(context.Background(), "PROMPT_ROUTER_"+userId, promptId).Result()
 	if errors.Is(err, redis.Nil) {
 		http.Error(writer, "not found", http.StatusInternalServerError)
 		return
@@ -164,7 +177,7 @@ func (m *ComfyUIManager) ApiDownload(writer http.ResponseWriter, request *http.R
 
 	//查询指定服务节点
 	target, _ := url.Parse(targetURI)
-	withProxy(target).ServeHTTP(writer, request)
+	m.withProxy(target).ServeHTTP(writer, request)
 }
 
 func (m *ComfyUIManager) downloadLocal(writer http.ResponseWriter, request *http.Request) {
@@ -187,11 +200,14 @@ func (m *ComfyUIManager) downloadLocal(writer http.ResponseWriter, request *http
 }
 
 func (m *ComfyUIManager) ApiHistory(writer http.ResponseWriter, request *http.Request) {
+	userPrincipal := request.Context().Value(UserPrincipalKey).(*UserPrincipal)
+	userId := userPrincipal.UserId
+
 	vars := mux.Vars(request)
 	promptId := vars["prompt_id"]
 
 	//查询任务ID 之前路由到哪个节点
-	targetURI, err := m.rdb.HGet(context.Background(), "PROMPT_ROUTER", promptId).Result()
+	targetURI, err := m.rdb.HGet(context.Background(), "PROMPT_ROUTER_"+userId, promptId).Result()
 	if errors.Is(err, redis.Nil) {
 		http.Error(writer, "not found", http.StatusInternalServerError)
 		return
@@ -202,5 +218,5 @@ func (m *ComfyUIManager) ApiHistory(writer http.ResponseWriter, request *http.Re
 
 	//查询指定服务节点
 	target, _ := url.Parse(targetURI)
-	withProxy(target).ServeHTTP(writer, request)
+	m.withProxy(target).ServeHTTP(writer, request)
 }
