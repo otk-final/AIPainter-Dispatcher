@@ -1,0 +1,46 @@
+### 生成字幕文件
+POST http://localhost:18080/bytedance/api/v1/vc/submit?appid=9413902475&words_per_line=20&max_lines=2
+Authorization: xxx-hxy
+Content-Type: audio/*
+#Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+#--WebAppBoundary
+#Content-Disposition: form-data; name="file"; filename="ai.mp3"
+
+< ./ai.mp3
+#--WebAppBoundary--
+
+### 查询结果
+GET http://localhost:18080/bytedance/api/v1/vc/query?appid=9413902475&id=fc237323-2483-4f83-86bc-18a99a488659
+Authorization: xxx-hxy
+Content-Type: application/json
+
+
+### 合成音频
+POST http://localhost:18080/bytedance/api/v1/tts
+Authorization: xxx-hxy
+Content-Type: application/json
+
+{
+  "app": {
+    "appid": "9413902475",
+    "token": "access_token",
+    "cluster": "volcano_tts"
+  },
+  "user": {
+    "uid": "xxx"
+  },
+  "audio": {
+    "encoding": "mp3",
+    "voice_type": "BV437_streaming",
+    "emotion": "angry",
+    "language": "cn"
+  },
+  "request": {
+    "reqid": "fc237323-2483-4f83-86bc-18a99a488659",
+    "text": "request and grant appid mismatch。",
+    "text_type": "plain",
+    "operation": "query"
+  }
+}
+

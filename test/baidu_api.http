@@ -1,0 +1,11 @@
+### 百度翻译
+POST http://localhost:18181/baidu/rpc/2.0/mt/texttrans/v1
+Authorization: xxx-xyz
+Content-Type: application/json
+
+{
+  "q": "在执行处理程序之前执行一些操作",
+  "from": "auto",
+  "to": "en"
+}
+

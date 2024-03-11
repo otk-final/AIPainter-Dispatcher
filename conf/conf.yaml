@@ -1,0 +1,54 @@
+#redis 认证
+redis:
+  address: redis://:@localhost:6379/8
+
+
+#生图接口（测试版本，和发布版本）
+comfy-ui:
+  location: /comfy_ui
+  address:
+    - http://localhost:6006
+    - http://58.49.141.134:8188
+  limit:
+    rate: 30
+    bucket: 5
+    predicates:
+      - POST /comfy_ui/prompt
+      - POST /comfy_ui/upload/image
+
+#火山引擎音频生成
+bytedance:
+  location: /bytedance
+  address: https://openspeech.bytedance.com
+  app-id: 9413902475
+  authorization: 9gyYDsIV-NcEcsbsmErHWK39T9Uvb8Bf
+  limit:
+    rate: 60
+    bucket: 3
+    predicates:
+      - POST /bytedance/api/v1/tts
+      - POST /bytedance/api/v1/vc/submit
+
+#百度翻译
+baidu:
+  location: /baidu
+  address: https://aip.baidubce.com
+  client-id: j5YmC3RxnEay92YGDzKfepP8
+  client-secret: IlRssYk8nswWfRE3Yy81GqPsZKmLkdAv
+  limit:
+    rate: 10
+    bucket: 3
+    predicates:
+      - POST /baidu/rpc/2.0/mt/texttrans/v1
+
+#OpenAI
+openai:
+  location: /openai
+  address: https://api.openai.com/
+  authorization: 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
+  limit:
+    rate: 20
+    bucket: 3
+    predicates:
+      - POST /openai/v1/chat/completions
+

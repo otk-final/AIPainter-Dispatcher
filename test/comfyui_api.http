@@ -1,5 +1,4 @@
 ### 提交任务
-
 POST http://localhost:18080/comfyui/prompt
 Authorization: xxx-xyz
 Content-Type: application/json
@@ -95,7 +94,6 @@ Content-Type: application/json
 }
 
 ### 上传图片
-
 POST http://localhost:18181/comfyui/upload/image
 Authorization: xxx-hxy
 Content-Type: multipart/form-data; boundary=WebAppBoundary

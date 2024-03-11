@@ -1,70 +1,70 @@
 package main
 
 import (
-	"AIPainter-Dispatcher/internal"
-	"AIPainter-Dispatcher/internal/ws"
-	"context"
+	"AIPainter-Dispatcher/conf"
+	"AIPainter-Dispatcher/internal/middleware"
+	"AIPainter-Dispatcher/internal/server"
 	"flag"
 	"github.com/gorilla/mux"
-	"github.com/redis/go-redis/v9"
+	"github.com/spf13/viper"
 	"log"
 	"net/http"
-	"strings"
 )
 
 var router = mux.NewRouter()
+var address = flag.String("listener", ":18080", "http server listener")
+var confPath = flag.String("conf", "conf/conf.yaml", "config path")
 
-var address = flag.String("address", ":18181", "Address")
+func initAppConf(confPath string) *conf.AppConfig {
 
-var redisConf = flag.String("redis", "redis://:@localhost:6379/8", "Redis")
+	//文件
+	viper.SetConfigFile(confPath)
+	viper.SetConfigType("yaml")
 
-var services = flag.String("comfyui_service", "http://58.49.141.134:8188", "ComfyUI服务地址")
-
-var inputAssetPath = flag.String("comfyui_input_path", ".", "ComfyUI上传文件存储路径")
-
-var outputAssetPath = flag.String("comfyui_output_path", ".", "ComfyUI下载文件路径")
-
-var bytedance = flag.String("bytedance_service", "https://openspeech.bytedance.com", "字节服务地址")
-
-var bytedanceToken = flag.String("bytedance_token", "9gyYDsIV-NcEcsbsmErHWK39T9Uvb8Bf", "字节服务TOKEN")
+	err := viper.ReadInConfig()
+	if err != nil {
+		log.Panicln(err)
+	}
+	var config conf.AppConfig
+	err = viper.Unmarshal(&config)
+	if err != nil {
+		log.Panicln(err)
+	}
+	return &config
+}
 
 func main() {
+
 	flag.Parse()
+	setting := initAppConf(*confPath)
+	log.Println(setting)
 
-	// init redis
-	redisOps, err := redis.ParseURL(*redisConf)
-	if err != nil {
-		log.Panicln(err)
-	}
-	rdb := redis.NewClient(redisOps)
-	err = rdb.Ping(context.Background()).Err()
-	if err != nil {
-		log.Panicln(err)
-	}
+	//代理接口
 
-	lb := internal.NewLoadBalancer(strings.Split(*services, " ")...)
-	comfyUIProxy := internal.NewComfyUIProxy("/comfyui", lb, rdb, *inputAssetPath, *outputAssetPath)
-	middle := internal.NewMiddleware(rdb)
+	//绘图
+	cs := router.PathPrefix(setting.ComfyUI.Location).Subrouter()
+	cs.PathPrefix("/").Handler(server.NewComfyUIProxy(setting.ComfyUI))
+	cs.Use(middleware.NewLimiter(setting.ComfyUI.Limit).Handle)
 
-	//ComfyUI 代理
-	comfyUiRouter := router.PathPrefix(comfyUIProxy.PathPrefix).Subrouter()
-	//init api router
-	comfyUiRouter.Path("/prompt").Methods("POST").HandlerFunc(comfyUIProxy.ApiPrompt)
-	//上传到本地，目标服务器通过分布式文件系统读取
-	comfyUiRouter.Path("/upload/image").Methods("POST").HandlerFunc(comfyUIProxy.ApiUpload)
-	//查询本地目录
-	comfyUiRouter.Path("/view").Methods("GET").HandlerFunc(comfyUIProxy.ApiDownload)
-	//查询本地记录，不存在则调用目标服务器查询
-	comfyUiRouter.Path("/history/{prompt_id}").Methods("GET").HandlerFunc(comfyUIProxy.ApiHistory)
-	//长链接
-	comfyUiRouter.Path("/ws").HandlerFunc(ws.NewUpgrade)
+	//火山引擎
+	bs := router.PathPrefix(setting.Bytedance.Location).Subrouter()
+	bs.PathPrefix("/").Handler(server.NewBytedanceProxy(setting.Bytedance))
+	bs.Use(middleware.NewLimiter(setting.Bytedance.Limit).Handle)
 
-	//火山引擎 代理
-	bytedanceProxy := internal.NewBytedanceManager("/bytedance", *bytedance, *bytedanceToken)
-	router.PathPrefix(bytedanceProxy.PathPrefix).Handler(bytedanceProxy.Proxy)
+	//百度
+	bds := router.PathPrefix(setting.Baidu.Location).Subrouter()
+	bds.PathPrefix("/").Handler(server.NewBaiduProxy(setting.Baidu))
+	bds.Use(middleware.NewLimiter(setting.Baidu.Limit).Handle)
 
-	//cors and auth
-	router.Use(mux.CORSMethodMiddleware(router), middle.UserAuthenticationMiddleware)
+	//OpenAI
+	as := router.PathPrefix(setting.OpenAI.Location).Subrouter()
+	as.PathPrefix("/").Handler(server.NewOpenAIProxy(setting.OpenAI))
+	as.Use(middleware.NewLimiter(setting.OpenAI.Limit).Handle)
+
+	//认证 + 统计
+	router.Use(middleware.NewAuth(setting.Jwt).HandleMock)
+
+	log.Printf("start http server %s", *address)
 	//start
 	_ = http.ListenAndServe(*address, router)
 }
