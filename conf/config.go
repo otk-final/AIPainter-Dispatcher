@@ -10,8 +10,8 @@ type AppConfig struct {
 }
 
 type JwtConf struct {
-	Alg string `yaml:"alg"`
-	Key string `yaml:"key"`
+	PrivateKey string `yaml:"private-key" mapstructure:"private-key"`
+	PublicKey  string `yaml:"public-key" mapstructure:"public-key"`
 }
 
 type LimitConf struct {
@@ -41,6 +41,7 @@ type BytedanceConf struct {
 
 type BaiduConf struct {
 	Location     string    `yaml:"location"`
+	TokenFile    string    `yaml:"token-file" mapstructure:"token-file"`
 	Limit        LimitConf `yaml:"limit"`
 	Address      string    `yaml:"address"`
 	ClientId     string    `yaml:"client-id" mapstructure:"client-id"`

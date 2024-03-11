@@ -3,50 +3,39 @@ package middleware
 import (
 	"AIPainter-Dispatcher/conf"
 	"context"
+	"crypto/rsa"
 	"github.com/golang-jwt/jwt/v5"
+	"log"
 	"net/http"
+	"os"
 )
 
 type UserPrincipal struct {
-	Id     string
-	Name   string
-	Type   string
-	Claims *UserClaims
-}
-
-type UserClaims struct {
-	jwt.Claims
-	Vip           string
-	VipRegTime    string
-	VipRenewTime  string
-	VipExpireTime string
+	Id   string
+	Name string
+	Type string
 }
 
 const UserPrincipalKey = "UserPrincipal"
 
 type Auth struct {
-	jwtParser jwt.Parser
-	jwtConf   conf.JwtConf
+	rasKey  *rsa.PublicKey
+	jwtConf conf.JwtConf
 }
 
 func NewAuth(jwtConf conf.JwtConf) *Auth {
-	return &Auth{jwtConf: jwtConf}
-}
 
-func (a *Auth) HandleMock(handler http.Handler) http.Handler {
-	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		newCtx := context.WithValue(request.Context(), UserPrincipalKey, &UserPrincipal{
-			Id:   "abc",
-			Name: "测试",
-			Type: "vip",
-			//Claims: token.Claims.(*UserClaims),
-		})
-		handler.ServeHTTP(writer, request.WithContext(newCtx))
-	})
+	//读取公钥
+	publicKeyData, err := os.ReadFile(jwtConf.PublicKey)
+	pk, err := jwt.ParseRSAPublicKeyFromPEM(publicKeyData)
+	if err != nil {
+		log.Panicln(err)
+	}
+
+	return &Auth{jwtConf: jwtConf, rasKey: pk}
 }
 
 func (a *Auth) Handle(handler http.Handler) http.Handler {
-
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		authorization := request.Header.Get("Authorization")
 		if authorization == "" {
@@ -55,20 +44,22 @@ func (a *Auth) Handle(handler http.Handler) http.Handler {
 		}
 
 		//jwt 解码
-		token, err := a.jwtParser.ParseWithClaims(authorization, &UserClaims{}, func(token *jwt.Token) (interface{}, error) {
-			return []byte(a.jwtConf.Key), nil
+		token, err := jwt.ParseWithClaims(authorization, &jwt.MapClaims{}, func(token *jwt.Token) (interface{}, error) {
+			return a.rasKey, nil
 		})
-
 		if err != nil {
 			http.Error(writer, "Client Unauthorized", http.StatusUnauthorized)
 			return
 		}
+		mapClaims := token.Claims.(*jwt.MapClaims)
+
+		//校验是否过期
+		log.Println(mapClaims)
 
 		newCtx := context.WithValue(request.Context(), UserPrincipalKey, &UserPrincipal{
-			Id:     token.Header["x-user-id"].(string),
-			Name:   token.Header["x-user-name"].(string),
-			Type:   token.Header["x-user-type"].(string),
-			Claims: token.Claims.(*UserClaims),
+			Id:   token.Header["x-user-id"].(string),
+			Name: token.Header["x-user-name"].(string),
+			Type: token.Header["x-user-type"].(string),
 		})
 		handler.ServeHTTP(writer, request.WithContext(newCtx))
 	})

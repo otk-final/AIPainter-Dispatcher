@@ -42,7 +42,11 @@ func (s *Statistics) Handle(next http.Handler) http.Handler {
 		up := request.Context().Value(UserPrincipalKey).(*UserPrincipal)
 
 		//ip访问
-		s.rdb.PFAdd(rdbCtx, "ip", request.Header.Get("X-Real-IP"))
+		realIp := request.Header.Get("X-Real-IP")
+		if realIp != "" {
+			s.rdb.PFAdd(rdbCtx, "ip", realIp)
+		}
+
 		//用户
 		s.rdb.PFAdd(rdbCtx, "user", up.Id)
 		s.rdb.PFAdd(rdbCtx, fmt.Sprintf("uri:%s", request.RequestURI), up.Id)

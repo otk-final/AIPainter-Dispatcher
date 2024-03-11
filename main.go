@@ -62,7 +62,7 @@ func main() {
 	as.Use(middleware.NewLimiter(setting.OpenAI.Limit).Handle)
 
 	//认证 + 统计
-	router.Use(middleware.NewAuth(setting.Jwt).HandleMock)
+	router.Use(middleware.NewAuth(setting.Jwt).Handle, middleware.NewStatistics(setting.Redis).Handle)
 
 	log.Printf("start http server %s", *address)
 	//start

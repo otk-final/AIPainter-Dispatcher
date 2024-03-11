@@ -15,6 +15,7 @@ import (
 
 type auth2Token struct {
 	AccessToken string `json:"access_token"`
+
 	//剩余秒
 	ExpiresIn     int64  `json:"expires_in"`
 	RefreshToken  string `json:"refresh_token"`
@@ -40,10 +41,10 @@ var token *auth2Token
 // 刷新 access_token
 func tokenRefreshJob(target *url.URL, conf conf.BaiduConf) {
 
-	tokenFile := "../../conf/baidu_auth.json"
+	//tokenFile := "../../conf/baidu_auth.json"
 
 	//读取本地文件
-	existToken, err := tokenLoad(tokenFile)
+	existToken, err := tokenLoad(conf.TokenFile)
 	var nextDuration time.Duration
 
 	if os.IsNotExist(err) || existToken.IsExpired() {
@@ -62,7 +63,7 @@ func tokenRefreshJob(target *url.URL, conf conf.BaiduConf) {
 		<-timer.C
 
 		//查询
-		at, err := tokenHandle(target, conf, tokenFile)
+		at, err := tokenHandle(target, conf, conf.TokenFile)
 		if err != nil {
 			log.Println("token handle err:{}", err.Error())
 			continue

@@ -22,7 +22,7 @@ func NewComfyUIProxy(conf conf.ComfyUIConf) *httputil.ReverseProxy {
 		Director: func(request *http.Request) {
 
 			//根据用户唯一标识，分配一致性地址
-			up := request.Context().Value(middleware.UserPrincipalKey).(middleware.UserPrincipal)
+			up := request.Context().Value(middleware.UserPrincipalKey).(*middleware.UserPrincipal)
 			targetAddress := hash.Get(up.Id)
 
 			target, err := url.Parse(targetAddress)

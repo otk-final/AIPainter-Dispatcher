@@ -2,13 +2,17 @@
 redis:
   address: redis://:@localhost:6379/8
 
+jwt:
+  public-key: /Users/hxy/develops/Rust/AIPainter-Dispatcher/conf/jwt_public_key.pem
 
 #生图接口（测试版本，和发布版本）
 comfy-ui:
   location: /comfy_ui
   address:
-    - http://localhost:6006
-    - http://58.49.141.134:8188
+#    - http://localhost:6006
+    - http://localhost:6007
+#    - http://192.168.50.137:8188
+#    - http://58.49.141.134:8188
   limit:
     rate: 30
     bucket: 5
@@ -32,6 +36,7 @@ bytedance:
 #百度翻译
 baidu:
   location: /baidu
+  token-file: /Users/hxy/develops/Rust/AIPainter-Dispatcher/conf/baidu_auth.json
   address: https://aip.baidubce.com
   client-id: j5YmC3RxnEay92YGDzKfepP8
   client-secret: IlRssYk8nswWfRE3Yy81GqPsZKmLkdAv
