@@ -43,11 +43,15 @@ func (l *Limiter) Handle(next http.Handler) http.Handler {
 		if l.router.Match(request, l.matcher) {
 			//获取用户级别限流配置
 			up := request.Context().Value(UserPrincipalKey).(*UserPrincipal)
-			data, _ := l.cache.LoadOrStore(fmt.Sprintf("%s/%s", up.Type, up.Id), rate.NewLimiter(rate.Every(time.Second*time.Duration(l.conf.Rate)), l.conf.Bucket))
+
+			rateTime := lo.Ternary(strings.EqualFold(up.Type, "vip"), l.conf.VipRate, l.conf.Rate)
+			bucketCount := lo.Ternary(strings.EqualFold(up.Type, "vip"), l.conf.VipBucket, l.conf.Bucket)
+
+			//区分vip 和 guest
+			data, _ := l.cache.LoadOrStore(fmt.Sprintf("%s/%s", up.Type, up.Id), rate.NewLimiter(rate.Every(time.Second*time.Duration(rateTime)), bucketCount))
 			limiter := data.(*rate.Limiter)
 
 			if !limiter.Allow() {
-
 				log.Printf("[%s]接口请求频繁：%s - %f", up.Id, request.RequestURI, limiter.Tokens())
 				http.Error(writer, http.StatusText(http.StatusTooManyRequests), http.StatusTooManyRequests)
 				return

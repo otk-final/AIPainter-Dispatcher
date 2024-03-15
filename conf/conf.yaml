@@ -9,13 +9,13 @@ jwt:
 comfy-ui:
   location: /comfyui
   address:
-#    - http://localhost:6006
-#    - http://localhost:6007
+    - http://region-41.seetacloud.com:12476
+    - https://u293571-addd-e64a6733.bjb1.seetacloud.com:8443
 #    - http://192.168.50.137:8188
-    - http://58.49.141.134:8188
+#    - http://58.49.141.134:8188
   limit:
-    rate: 10
-    bucket: 20
+    rate: 20
+    bucket: 100
     predicates:
       - POST /comfyui/prompt
       - POST /comfyui/upload/image
@@ -50,8 +50,8 @@ baidu:
 openai:
   location: /openai
 #  address: https://api.openai.com/
-  address: http://api.otk-dev.com/aipainter-openai
-  authorization: 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
+  address: https://wx.yryz3.com/aipainter-openai
+#  authorization: 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
   limit:
     rate: 30
     bucket: 10

@@ -30,5 +30,9 @@ func NewBytedanceProxy(conf conf.BytedanceConf) *httputil.ReverseProxy {
 			request.Header.Set("Authorization", fmt.Sprintf("Bearer;%s", conf.Authorization))
 			request.Header.Set("X-Forwarded-Host", request.Header.Get("Host"))
 		},
+		ModifyResponse: func(response *http.Response) error {
+			response.Header.Del("Access-Control-Allow-Origin")
+			return nil
+		},
 	}
 }

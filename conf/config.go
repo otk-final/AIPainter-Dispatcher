@@ -17,6 +17,8 @@ type JwtConf struct {
 type LimitConf struct {
 	Rate       int      `yaml:"rate"`
 	Bucket     int      `yaml:"bucket"`
+	VipRate    int      `yaml:"vip-rate" mapstructure:"vip-rate"`
+	VipBucket  int      `yaml:"vip-bucket" mapstructure:"vip-bucket"`
 	Predicates []string `yaml:"predicates"`
 }
 

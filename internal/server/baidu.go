@@ -160,5 +160,9 @@ func NewBaiduProxy(conf conf.BaiduConf) *httputil.ReverseProxy {
 
 			request.Header.Set("X-Forwarded-Host", request.Header.Get("Host"))
 		},
+		ModifyResponse: func(response *http.Response) error {
+			response.Header.Del("Access-Control-Allow-Origin")
+			return nil
+		},
 	}
 }
