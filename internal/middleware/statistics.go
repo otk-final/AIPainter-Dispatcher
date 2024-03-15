@@ -36,7 +36,6 @@ func NewStatistics(conf conf.RedisConf) *Statistics {
 func (s *Statistics) Handle(next http.Handler) http.Handler {
 
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-
 		rdbCtx := context.Background()
 
 		up := request.Context().Value(UserPrincipalKey).(*UserPrincipal)

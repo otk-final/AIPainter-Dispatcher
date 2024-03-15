@@ -7,23 +7,23 @@ jwt:
 
 #生图接口（测试版本，和发布版本）
 comfy-ui:
-  location: /comfy_ui
+  location: /comfyui
   address:
 #    - http://localhost:6006
-    - http://localhost:6007
+#    - http://localhost:6007
 #    - http://192.168.50.137:8188
-#    - http://58.49.141.134:8188
+    - http://58.49.141.134:8188
   limit:
-    rate: 30
-    bucket: 5
+    rate: 10
+    bucket: 20
     predicates:
-      - POST /comfy_ui/prompt
-      - POST /comfy_ui/upload/image
+      - POST /comfyui/prompt
+      - POST /comfyui/upload/image
 
 #火山引擎音频生成
 bytedance:
   location: /bytedance
-  address: https://openspeech.bytedance.com
+  address: https://openspeech.bytedance.com/
   app-id: 9413902475
   authorization: 9gyYDsIV-NcEcsbsmErHWK39T9Uvb8Bf
   limit:
@@ -49,11 +49,12 @@ baidu:
 #OpenAI
 openai:
   location: /openai
-  address: https://api.openai.com/
-  authorization: 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
+#  address: https://api.openai.com/
+  address: http://api.otk-dev.com/aipainter-openai
+  authorization: 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
   limit:
-    rate: 20
-    bucket: 3
+    rate: 30
+    bucket: 10
     predicates:
       - POST /openai/v1/chat/completions
 

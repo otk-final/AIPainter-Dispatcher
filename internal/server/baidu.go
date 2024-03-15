@@ -9,6 +9,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"path"
 	"strings"
 	"time"
 )
@@ -149,13 +150,15 @@ func NewBaiduProxy(conf conf.BaiduConf) *httputil.ReverseProxy {
 			rawValues := url.Values{}
 			rawValues.Set("access_token", token.AccessToken)
 
-			request.URL.Scheme = target.Scheme
-			request.URL.Host = target.Host
-			request.URL.Path = strings.TrimPrefix(request.URL.Path, conf.Location)
+			//只替换地址和路径,参数保留
+			t := target.JoinPath(strings.TrimPrefix(request.URL.Path, conf.Location))
+			request.URL.Scheme = t.Scheme
+			request.URL.Host = t.Host
+			request.URL.Path = path.Join("/", t.Path)
 			request.URL.RawQuery = rawValues.Encode()
-			request.Header.Set("X-Forwarded-Host", request.Header.Get("Host"))
-			request.Host = target.Host
+			request.Host = t.Host
 
+			request.Header.Set("X-Forwarded-Host", request.Header.Get("Host"))
 		},
 	}
 }

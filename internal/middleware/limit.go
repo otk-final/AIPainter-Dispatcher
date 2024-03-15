@@ -6,6 +6,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/samber/lo"
 	"golang.org/x/time/rate"
+	"log"
 	"net/http"
 	"strings"
 	"sync"
@@ -46,6 +47,8 @@ func (l *Limiter) Handle(next http.Handler) http.Handler {
 			limiter := data.(*rate.Limiter)
 
 			if !limiter.Allow() {
+
+				log.Printf("[%s]接口请求频繁：%s - %f", up.Id, request.RequestURI, limiter.Tokens())
 				http.Error(writer, http.StatusText(http.StatusTooManyRequests), http.StatusTooManyRequests)
 				return
 			}

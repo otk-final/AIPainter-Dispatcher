@@ -6,6 +6,7 @@ import (
 	"AIPainter-Dispatcher/internal/server"
 	"flag"
 	"github.com/gorilla/mux"
+	"github.com/rs/cors"
 	"github.com/spf13/viper"
 	"log"
 	"net/http"
@@ -37,7 +38,6 @@ func main() {
 
 	flag.Parse()
 	setting := initAppConf(*confPath)
-	log.Println(setting)
 
 	//代理接口
 
@@ -62,9 +62,22 @@ func main() {
 	as.Use(middleware.NewLimiter(setting.OpenAI.Limit).Handle)
 
 	//认证 + 统计
-	router.Use(middleware.NewAuth(setting.Jwt).Handle, middleware.NewStatistics(setting.Redis).Handle)
+	router.Use(middleware.NewAuth(setting.Jwt).Handle, middleware.NewStatistics(setting.Redis).Handle, resetProxyCors)
 
+	//跨域
+	handle := cors.AllowAll().Handler(router)
 	log.Printf("start http server %s", *address)
+
 	//start
-	_ = http.ListenAndServe(*address, router)
+	_ = http.ListenAndServe(*address, handle)
+}
+
+// 重置代理服务器返回的跨域请求头
+// cors.AllowAll() 会新增 *
+func resetProxyCors(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		//移除代理服务器返回了跨域信息
+		writer.Header().Del("Access-Control-Allow-Origin")
+		next.ServeHTTP(writer, request)
+	})
 }

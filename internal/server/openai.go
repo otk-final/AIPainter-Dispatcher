@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"path"
 	"strings"
 )
 
@@ -18,13 +19,16 @@ func NewOpenAIProxy(conf conf.OpenAIConf) *httputil.ReverseProxy {
 
 	return &httputil.ReverseProxy{
 		Director: func(request *http.Request) {
-			request.URL.Scheme = target.Scheme
-			request.URL.Host = target.Host
-			request.URL.Path = strings.TrimPrefix(request.URL.Path, conf.Location)
+
+			//只替换地址和路径,参数保留
+			t := target.JoinPath(strings.TrimPrefix(request.URL.Path, conf.Location))
+			request.URL.Scheme = t.Scheme
+			request.URL.Host = t.Host
+			request.URL.Path = path.Join("/", t.Path)
+			request.Host = t.Host
+
 			request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", conf.Authorization))
 			request.Header.Set("X-Forwarded-Host", request.Header.Get("Host"))
-			request.Header.Set("Connection", "")
-			request.Host = target.Host
 		},
 	}
 }

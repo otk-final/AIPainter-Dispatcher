@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 )
 
 type UserPrincipal struct {
@@ -44,18 +45,14 @@ func (a *Auth) Handle(handler http.Handler) http.Handler {
 		}
 
 		//jwt 解码
-		token, err := jwt.ParseWithClaims(authorization, &jwt.MapClaims{}, func(token *jwt.Token) (interface{}, error) {
+		token, err := jwt.ParseWithClaims(strings.Split(authorization, " ")[1], &jwt.MapClaims{}, func(token *jwt.Token) (interface{}, error) {
 			return a.rasKey, nil
 		})
 		if err != nil {
 			http.Error(writer, "Client Unauthorized", http.StatusUnauthorized)
 			return
 		}
-		mapClaims := token.Claims.(*jwt.MapClaims)
-
-		//校验是否过期
-		log.Println(mapClaims)
-
+		//mapClaims := token.Claims.(*jwt.MapClaims)
 		newCtx := context.WithValue(request.Context(), UserPrincipalKey, &UserPrincipal{
 			Id:   token.Header["x-user-id"].(string),
 			Name: token.Header["x-user-name"].(string),
