@@ -34,5 +34,8 @@ func NewBytedanceProxy(conf conf.BytedanceConf) *httputil.ReverseProxy {
 			response.Header.Del("Access-Control-Allow-Origin")
 			return nil
 		},
+		ErrorHandler: func(writer http.ResponseWriter, request *http.Request, err error) {
+
+		},
 	}
 }

@@ -6,14 +6,21 @@ import (
 	"AIPainter-Dispatcher/internal/server"
 	"flag"
 	"github.com/gorilla/mux"
+	"github.com/natefinch/lumberjack"
 	"github.com/rs/cors"
 	"github.com/spf13/viper"
+	"io"
 	"log"
+	"log/slog"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 var router = mux.NewRouter()
 var address = flag.String("listener", ":18080", "http server listener")
+var logPath = flag.String("log", "./app.log", "logger path")
 var confPath = flag.String("conf", "conf/conf.yaml", "config path")
 
 func initAppConf(confPath string) *conf.AppConfig {
@@ -34,9 +41,42 @@ func initAppConf(confPath string) *conf.AppConfig {
 	return &config
 }
 
-func main() {
+func initLogger() {
+	r := &lumberjack.Logger{
+		Filename:   *logPath,
+		MaxSize:    5,
+		MaxAge:     7,
+		MaxBackups: 10,
+		LocalTime:  false,
+		Compress:   true,
+	}
+	multiWriter := io.MultiWriter(r, os.Stdout)
 
+	//结构日志
+	logger := slog.New(slog.NewJSONHandler(multiWriter, nil))
+
+	slog.SetDefault(logger)
+
+	//标准库日志
+	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
+	log.SetOutput(multiWriter)
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGHUP)
+
+	go func() {
+		for {
+			<-c
+			_ = r.Rotate()
+		}
+	}()
+}
+
+func main() {
 	flag.Parse()
+
+	initLogger()
+
 	setting := initAppConf(*confPath)
 
 	//代理接口

@@ -43,7 +43,6 @@ func (a *Auth) Handle(handler http.Handler) http.Handler {
 			http.Error(writer, "Client Unauthorized", http.StatusUnauthorized)
 			return
 		}
-
 		//jwt 解码
 		token, err := jwt.ParseWithClaims(strings.Split(authorization, " ")[1], &jwt.MapClaims{}, func(token *jwt.Token) (interface{}, error) {
 			return a.rasKey, nil
