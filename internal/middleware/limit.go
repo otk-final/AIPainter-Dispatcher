@@ -44,7 +44,8 @@ func (l *Limiter) Handle(next http.Handler) http.Handler {
 			//获取用户级别限流配置
 			up := request.Context().Value(UserPrincipalKey).(*UserPrincipal)
 
-			rateTime := lo.Ternary(strings.EqualFold(up.Type, "vip"), l.conf.VipRate, l.conf.Rate)
+			//默认每分钟
+			rateTime := lo.Ternary(l.conf.Rate > 0, l.conf.Rate, 60)
 			bucketCount := lo.Ternary(strings.EqualFold(up.Type, "vip"), l.conf.VipBucket, l.conf.Bucket)
 
 			//区分vip 和 guest
@@ -52,7 +53,7 @@ func (l *Limiter) Handle(next http.Handler) http.Handler {
 			limiter := data.(*rate.Limiter)
 
 			if !limiter.Allow() {
-				log.Printf("[%s]接口请求频繁：%s - %f", up.Id, request.RequestURI, limiter.Tokens())
+				log.Printf("[%s:%s] - [%s]接口请求频繁：%s", up.Type, up.Id, request.Header.Get("x-real-ip"), request.RequestURI)
 				http.Error(writer, http.StatusText(http.StatusTooManyRequests), http.StatusTooManyRequests)
 				return
 			}

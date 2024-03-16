@@ -3,19 +3,18 @@ redis:
   address: redis://:@localhost:6379/8
 
 jwt:
-  public-key: /Users/hxy/develops/Rust/AIPainter-Dispatcher/conf/jwt_public_key.pem
+  public-key: ./jwt_public_key.pem
 
 #生图接口（测试版本，和发布版本）
 comfy-ui:
   location: /comfyui
   address:
-#    - http://region-41.seetacloud.com:12476
-#    - https://u293571-addd-e64a6733.bjb1.seetacloud.com:8443
-    - http://192.168.50.137:8188
-#    - http://58.49.141.134:8188
+    - http://region-41.seetacloud.com:12476
+    - https://u293571-addd-e64a6733.bjb1.seetacloud.com:8443
+    - http://58.49.141.134:8188
   limit:
-    rate: 20
-    bucket: 100
+    bucket: 10
+    vip-bucket: 100
     predicates:
       - POST /comfyui/prompt
       - POST /comfyui/upload/image
@@ -27,8 +26,8 @@ bytedance:
   app-id: 9413902475
   authorization: 9gyYDsIV-NcEcsbsmErHWK39T9Uvb8Bf
   limit:
-    rate: 60
-    bucket: 3
+    bucket: 5
+    vip-bucket: 100
     predicates:
       - POST /bytedance/api/v1/tts
       - POST /bytedance/api/v1/vc/submit
@@ -36,25 +35,24 @@ bytedance:
 #百度翻译
 baidu:
   location: /baidu
-  token-file: /Users/hxy/develops/Rust/AIPainter-Dispatcher/conf/baidu_auth.json
+  token-file: ./baidu_auth.json
   address: https://aip.baidubce.com
   client-id: j5YmC3RxnEay92YGDzKfepP8
   client-secret: IlRssYk8nswWfRE3Yy81GqPsZKmLkdAv
   limit:
-    rate: 10
-    bucket: 3
+    bucket: 5
+    vip-bucket: 100
     predicates:
       - POST /baidu/rpc/2.0/mt/texttrans/v1
 
 #OpenAI
 openai:
   location: /openai
-#  address: https://api.openai.com/
-  address: https://wx.yryz3.com/aipainter-openai
-#  authorization: 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
+  address: https://api.openai.com/
+  authorization: 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
   limit:
-    rate: 30
-    bucket: 10
+    bucket: 5
+    vip-bucket: 100
     predicates:
       - POST /openai/v1/chat/completions
 
