@@ -35,7 +35,7 @@ bytedance:
 #百度翻译
 baidu:
   location: /baidu
-  token-file: ./baidu_auth.json
+  token-file: conf/baidu_auth.json
   address: https://aip.baidubce.com
   client-id: j5YmC3RxnEay92YGDzKfepP8
   client-secret: IlRssYk8nswWfRE3Yy81GqPsZKmLkdAv

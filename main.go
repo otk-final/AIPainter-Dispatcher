@@ -20,7 +20,7 @@ import (
 
 var router = mux.NewRouter()
 var address = flag.String("listener", ":18080", "http server listener")
-var logPath = flag.String("log", "./app.log", "logger path")
+var logPath = flag.String("log", "./access.log", "logger path")
 var confPath = flag.String("conf", "conf/conf.yaml", "config path")
 
 func initAppConf(confPath string) *conf.AppConfig {
