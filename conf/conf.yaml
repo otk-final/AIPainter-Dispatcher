@@ -9,9 +9,9 @@ jwt:
 comfy-ui:
   location: /comfyui
   address:
-    - http://region-41.seetacloud.com:12476
-    - https://u293571-addd-e64a6733.bjb1.seetacloud.com:8443
-#    - http://192.168.50.137:8188
+#    - http://region-41.seetacloud.com:12476
+#    - https://u293571-addd-e64a6733.bjb1.seetacloud.com:8443
+    - http://192.168.50.137:8188
 #    - http://58.49.141.134:8188
   limit:
     rate: 20

@@ -32,7 +32,7 @@ func NewComfyUIProxy(conf conf.ComfyUIConf) *httputil.ReverseProxy {
 			key := strings.Join([]string{up.Id, traceId}, "#")
 			targetAddress := hash.Get(key)
 
-			log.Printf("[%s] %s -> %s", traceId, request.RequestURI, targetAddress)
+			//log.Printf("[%s] %s -> %s", traceId, request.RequestURI, targetAddress)
 			target, err := url.Parse(targetAddress)
 			if err != nil {
 				return
@@ -49,6 +49,10 @@ func NewComfyUIProxy(conf conf.ComfyUIConf) *httputil.ReverseProxy {
 		ModifyResponse: func(response *http.Response) error {
 			response.Header.Del("Access-Control-Allow-Origin")
 			return nil
+		},
+		ErrorHandler: func(writer http.ResponseWriter, request *http.Request, err error) {
+			log.Printf("ComfyUIProxyError: %s => %s %s", request.RequestURI, request.Host, err.Error())
+			writer.WriteHeader(http.StatusBadGateway)
 		},
 	}
 }

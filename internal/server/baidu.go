@@ -69,6 +69,7 @@ func tokenRefreshJob(target *url.URL, conf conf.BaiduConf) {
 			log.Println("token handle err:{}", err.Error())
 			continue
 		}
+		log.Println("百度Access Token刷新完成")
 
 		token = at
 
@@ -163,6 +164,10 @@ func NewBaiduProxy(conf conf.BaiduConf) *httputil.ReverseProxy {
 		ModifyResponse: func(response *http.Response) error {
 			response.Header.Del("Access-Control-Allow-Origin")
 			return nil
+		},
+		ErrorHandler: func(writer http.ResponseWriter, request *http.Request, err error) {
+			log.Printf("BaiduProxyError: %s => %s %s", request.RequestURI, request.Host, err.Error())
+			writer.WriteHeader(http.StatusBadGateway)
 		},
 	}
 }

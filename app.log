@@ -6,3 +6,6 @@ time=2024-03-16T15:23:52.896+08:00 level=INFO msg="api limited" ip=0xc00019a3e0
 2024/03/16 15:38:44 main.go:109: start http server :18080
 {"time":"2024-03-16T15:38:44.115759+08:00","level":"ERROR","msg":"start conf ","x":"配置"}
 this on2024/03/16 15:41:15 main.go:110: start http server :18080
+2024/03/16 15:59:36 main.go:109: start http server :18080
+2024/03/16 16:03:06 main.go:109: start http server :18080
+2024/03/16 16:03:46 comfyui.go:54: ComfyUIProxyError: /comfyui/upload/image => 192.168.50.137:8188 dial tcp 192.168.50.137:8188: i/o timeout

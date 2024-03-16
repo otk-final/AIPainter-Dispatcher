@@ -35,7 +35,8 @@ func NewBytedanceProxy(conf conf.BytedanceConf) *httputil.ReverseProxy {
 			return nil
 		},
 		ErrorHandler: func(writer http.ResponseWriter, request *http.Request, err error) {
-
+			log.Printf("BytedanceProxyError: %s => %s %s", request.RequestURI, request.Host, err.Error())
+			writer.WriteHeader(http.StatusBadGateway)
 		},
 	}
 }

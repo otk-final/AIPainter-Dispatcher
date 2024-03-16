@@ -34,5 +34,9 @@ func NewOpenAIProxy(conf conf.OpenAIConf) *httputil.ReverseProxy {
 			response.Header.Del("Access-Control-Allow-Origin")
 			return nil
 		},
+		ErrorHandler: func(writer http.ResponseWriter, request *http.Request, err error) {
+			log.Printf("OpenAiProxyError: %s => %s %s", request.RequestURI, request.Host, err.Error())
+			writer.WriteHeader(http.StatusBadGateway)
+		},
 	}
 }
