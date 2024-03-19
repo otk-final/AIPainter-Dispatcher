@@ -1,12 +1,12 @@
 package conf
 
 type AppConfig struct {
-	Redis     RedisConf     `yaml:"redis"`
-	Jwt       JwtConf       `yaml:"jwt"`
-	ComfyUI   ComfyUIConf   `yaml:"comfy-ui" mapstructure:"comfy-ui"`
-	Bytedance BytedanceConf `yaml:"bytedance"`
-	Baidu     BaiduConf     `yaml:"baidu"`
-	OpenAI    OpenAIConf    `yaml:"openai"`
+	Redis     RedisConf      `yaml:"redis"`
+	Jwt       JwtConf        `yaml:"jwt"`
+	ComfyUI   *ComfyUIConf   `yaml:"comfy-ui" mapstructure:"comfy-ui"`
+	Bytedance *BytedanceConf `yaml:"bytedance"`
+	Baidu     *BaiduConf     `yaml:"baidu"`
+	OpenAI    *OpenAIConf    `yaml:"openai"`
 }
 
 type JwtConf struct {

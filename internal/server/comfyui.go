@@ -15,7 +15,7 @@ import (
 type ComfyUIProxy struct {
 }
 
-func NewComfyUIProxy(conf conf.ComfyUIConf) *httputil.ReverseProxy {
+func NewComfyUIProxy(conf *conf.ComfyUIConf) *httputil.ReverseProxy {
 
 	hash := lb.New(100, nil)
 	hash.Add(conf.Address...)

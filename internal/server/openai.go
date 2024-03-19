@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-func NewOpenAIProxy(conf conf.OpenAIConf) *httputil.ReverseProxy {
+func NewOpenAIProxy(conf *conf.OpenAIConf) *httputil.ReverseProxy {
 	target, err := url.Parse(conf.Address)
 	if err != nil {
 		log.Panicln(err)

@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-func NewBytedanceProxy(conf conf.BytedanceConf) *httputil.ReverseProxy {
+func NewBytedanceProxy(conf *conf.BytedanceConf) *httputil.ReverseProxy {
 	target, err := url.Parse(conf.Address)
 	if err != nil {
 		log.Panicln(err)

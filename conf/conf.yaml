@@ -3,7 +3,7 @@ redis:
   address: redis://:@localhost:6379/8
 
 jwt:
-  public-key: ./jwt_public_key.pem
+  public-key: conf/jwt_public_key.pem
 
 #生图接口（测试版本，和发布版本）
 comfy-ui:
@@ -11,7 +11,6 @@ comfy-ui:
   address:
     - http://region-41.seetacloud.com:12476
     - https://u293571-addd-e64a6733.bjb1.seetacloud.com:8443
-    - http://58.49.141.134:8188
   limit:
     bucket: 10
     vip-bucket: 100

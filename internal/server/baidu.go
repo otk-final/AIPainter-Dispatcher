@@ -40,7 +40,7 @@ func (t *auth2Token) NexDuration() time.Duration {
 var token *auth2Token
 
 // 刷新 access_token
-func tokenRefreshJob(target *url.URL, conf conf.BaiduConf) {
+func tokenRefreshJob(target *url.URL, conf *conf.BaiduConf) {
 
 	//tokenFile := "../../conf/baidu_auth.json"
 
@@ -97,7 +97,7 @@ func tokenLoad(file string) (*auth2Token, error) {
 }
 
 // 获取 access_token
-func tokenHandle(target *url.URL, conf conf.BaiduConf, file string) (*auth2Token, error) {
+func tokenHandle(target *url.URL, conf *conf.BaiduConf, file string) (*auth2Token, error) {
 
 	raws := url.Values{}
 	raws.Set("client_id", conf.ClientId)
@@ -136,7 +136,7 @@ func tokenHandle(target *url.URL, conf conf.BaiduConf, file string) (*auth2Token
 	return &auth2, nil
 }
 
-func NewBaiduProxy(conf conf.BaiduConf) *httputil.ReverseProxy {
+func NewBaiduProxy(conf *conf.BaiduConf) *httputil.ReverseProxy {
 	target, err := url.Parse(conf.Address)
 	if err != nil {
 		log.Panicln(err)

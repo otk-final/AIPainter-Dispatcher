@@ -82,24 +82,32 @@ func main() {
 	//代理接口
 
 	//绘图
-	cs := router.PathPrefix(setting.ComfyUI.Location).Subrouter()
-	cs.PathPrefix("/").Handler(server.NewComfyUIProxy(setting.ComfyUI))
-	cs.Use(middleware.NewLimiter(setting.ComfyUI.Limit).Handle)
+	if setting.ComfyUI != nil {
+		cs := router.PathPrefix(setting.ComfyUI.Location).Subrouter()
+		cs.PathPrefix("/").Handler(server.NewComfyUIProxy(setting.ComfyUI))
+		cs.Use(middleware.NewLimiter(setting.ComfyUI.Limit).Handle)
+	}
 
 	//火山引擎
-	bs := router.PathPrefix(setting.Bytedance.Location).Subrouter()
-	bs.PathPrefix("/").Handler(server.NewBytedanceProxy(setting.Bytedance))
-	bs.Use(middleware.NewLimiter(setting.Bytedance.Limit).Handle)
+	if setting.Bytedance != nil {
+		bs := router.PathPrefix(setting.Bytedance.Location).Subrouter()
+		bs.PathPrefix("/").Handler(server.NewBytedanceProxy(setting.Bytedance))
+		bs.Use(middleware.NewLimiter(setting.Bytedance.Limit).Handle)
+	}
 
 	//百度
-	bds := router.PathPrefix(setting.Baidu.Location).Subrouter()
-	bds.PathPrefix("/").Handler(server.NewBaiduProxy(setting.Baidu))
-	bds.Use(middleware.NewLimiter(setting.Baidu.Limit).Handle)
+	if setting.Baidu != nil {
+		bds := router.PathPrefix(setting.Baidu.Location).Subrouter()
+		bds.PathPrefix("/").Handler(server.NewBaiduProxy(setting.Baidu))
+		bds.Use(middleware.NewLimiter(setting.Baidu.Limit).Handle)
+	}
 
 	//OpenAI
-	as := router.PathPrefix(setting.OpenAI.Location).Subrouter()
-	as.PathPrefix("/").Handler(server.NewOpenAIProxy(setting.OpenAI))
-	as.Use(middleware.NewLimiter(setting.OpenAI.Limit).Handle)
+	if setting.OpenAI != nil {
+		as := router.PathPrefix(setting.OpenAI.Location).Subrouter()
+		as.PathPrefix("/").Handler(server.NewOpenAIProxy(setting.OpenAI))
+		as.Use(middleware.NewLimiter(setting.OpenAI.Limit).Handle)
+	}
 
 	//认证 + 统计
 	router.Use(middleware.NewAuth(setting.Jwt).Handle, middleware.NewStatistics(setting.Redis).Handle)
