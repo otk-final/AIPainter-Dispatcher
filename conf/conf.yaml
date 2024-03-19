@@ -1,6 +1,6 @@
 #redis 认证
 redis:
-  address: redis://:@localhost:6379/8
+  address: redis://:@47.243.184.175:6379/8
 
 jwt:
   public-key: conf/jwt_public_key.pem

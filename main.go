@@ -83,6 +83,7 @@ func main() {
 
 	//绘图
 	if setting.ComfyUI != nil {
+		log.Printf("开启ComfyUI:%s", setting.ComfyUI.Address)
 		cs := router.PathPrefix(setting.ComfyUI.Location).Subrouter()
 		cs.PathPrefix("/").Handler(server.NewComfyUIProxy(setting.ComfyUI))
 		cs.Use(middleware.NewLimiter(setting.ComfyUI.Limit).Handle)
@@ -90,6 +91,7 @@ func main() {
 
 	//火山引擎
 	if setting.Bytedance != nil {
+		log.Printf("开启Bytedance:%s", setting.Bytedance.Address)
 		bs := router.PathPrefix(setting.Bytedance.Location).Subrouter()
 		bs.PathPrefix("/").Handler(server.NewBytedanceProxy(setting.Bytedance))
 		bs.Use(middleware.NewLimiter(setting.Bytedance.Limit).Handle)
@@ -97,6 +99,7 @@ func main() {
 
 	//百度
 	if setting.Baidu != nil {
+		log.Printf("开启Baidu:%s", setting.Baidu.Address)
 		bds := router.PathPrefix(setting.Baidu.Location).Subrouter()
 		bds.PathPrefix("/").Handler(server.NewBaiduProxy(setting.Baidu))
 		bds.Use(middleware.NewLimiter(setting.Baidu.Limit).Handle)
@@ -104,6 +107,7 @@ func main() {
 
 	//OpenAI
 	if setting.OpenAI != nil {
+		log.Printf("开启OpenAI:%s", setting.OpenAI.Address)
 		as := router.PathPrefix(setting.OpenAI.Location).Subrouter()
 		as.PathPrefix("/").Handler(server.NewOpenAIProxy(setting.OpenAI))
 		as.Use(middleware.NewLimiter(setting.OpenAI.Limit).Handle)

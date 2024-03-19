@@ -1,1 +1,8 @@
 2024/03/19 09:21:46 statistics.go:27: dial tcp [::1]:6379: connect: connection refused
+2024/03/19 15:32:10 statistics.go:28: dial tcp [::1]:6379: connect: connection refused
+2024/03/19 15:32:44 main.go:120: start http server :18080
+2024/03/19 15:34:09 main.go:86: 开启ComfyUI:[http://region-41.seetacloud.com:12476 https://u293571-addd-e64a6733.bjb1.seetacloud.com:8443]
+2024/03/19 15:34:09 main.go:94: 开启Bytedance:https://openspeech.bytedance.com/
+2024/03/19 15:34:09 main.go:102: 开启Baidu:https://aip.baidubce.com
+2024/03/19 15:34:09 main.go:110: 开启OpenAI:https://api.openai.com/
+2024/03/19 15:34:09 main.go:124: start http server :18080
