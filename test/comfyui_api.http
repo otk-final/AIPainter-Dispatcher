@@ -199,3 +199,8 @@ Authorization: xxx-hxy
 GET http://localhost:18080/comfy_ui/view?filename=ai.png&subfolder=abc&type=input
 Authorization: xxx-hxy
 
+
+### 健康检查
+#GET https://u293571-addd-e64a6733.bjb1.seetacloud.com:8443/prompt
+GET http://region-41.seetacloud.com:12476/prompt
+Content-Type: application/json

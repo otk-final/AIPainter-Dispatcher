@@ -12,13 +12,34 @@ import (
 	"strings"
 )
 
-type ComfyUIProxy struct {
-}
+//type ComfyUIProxy struct {
+//	address []string
+//	lock    sync.Mutex
+//}
+//
+//func (c *ComfyUIProxy) promptQueueCheck(targetAddress string) (int, error) {
+//	target, _ := url.Parse(targetAddress)
+//	resp, err := http.Get(target.JoinPath("/prompt").String())
+//	if err != nil {
+//		return -1, nil
+//	}
+//
+//	defer resp.Body.Close()
+//	body, _ := io.ReadAll(resp.Body)
+//	var inf map[string]any
+//	_ = json.Unmarshal(body, &inf)
+//
+//	//获取当前队列剩余任务数
+//	return inf["exec_info"].(map[string]any)["queue_remaining"].(int), nil
+//}
 
 func NewComfyUIProxy(conf *conf.ComfyUIConf) *httputil.ReverseProxy {
 
 	hash := lb.New(100, nil)
 	hash.Add(conf.Address...)
+
+	//开启异步监听各个实力队列情况
+	//cache := expirable.NewLRU[string, *UserLastedJob](1000, nil, time.Minute*3)
 
 	return &httputil.ReverseProxy{
 		Director: func(request *http.Request) {
@@ -29,14 +50,11 @@ func NewComfyUIProxy(conf *conf.ComfyUIConf) *httputil.ReverseProxy {
 			//接口一致性要求高 文件上传，提交任务，查询结果，需落地到同一服务器
 			//根据请求头 x-user-id 和 x-trace-id 计算一致性
 			traceId := request.Header.Get("x-trace-id")
+
+			//获取缓存中的历史记录
 			key := strings.Join([]string{up.Id, traceId}, "#")
 			targetAddress := hash.Get(key)
-
-			//log.Printf("[%s] %s -> %s", traceId, request.RequestURI, targetAddress)
-			target, err := url.Parse(targetAddress)
-			if err != nil {
-				return
-			}
+			target, _ := url.Parse(targetAddress)
 
 			//只替换地址和路径,参数保留
 			t := target.JoinPath(strings.TrimPrefix(request.URL.Path, conf.Location))

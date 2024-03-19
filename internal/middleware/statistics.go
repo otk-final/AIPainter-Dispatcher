@@ -10,11 +10,11 @@ import (
 )
 
 type Statistics struct {
-	conf conf.RedisConf
+	conf *conf.RedisConf
 	rdb  *redis.Client
 }
 
-func NewStatistics(conf conf.RedisConf) *Statistics {
+func NewStatistics(conf *conf.RedisConf) *Statistics {
 
 	//init redis
 	redisOps, err := redis.ParseURL(conf.Address)
@@ -22,6 +22,7 @@ func NewStatistics(conf conf.RedisConf) *Statistics {
 		log.Panicln(err)
 	}
 	rdb := redis.NewClient(redisOps)
+
 	err = rdb.Ping(context.Background()).Err()
 	if err != nil {
 		log.Panicln(err)

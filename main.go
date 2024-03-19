@@ -110,7 +110,10 @@ func main() {
 	}
 
 	//认证 + 统计
-	router.Use(middleware.NewAuth(setting.Jwt).Handle, middleware.NewStatistics(setting.Redis).Handle)
+	router.Use(middleware.NewAuth(setting.Jwt).Handle)
+	if setting.Redis != nil {
+		router.Use(middleware.NewStatistics(setting.Redis).Handle)
+	}
 
 	//跨域
 	handle := cors.AllowAll().Handler(router)

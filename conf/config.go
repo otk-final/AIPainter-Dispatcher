@@ -1,7 +1,7 @@
 package conf
 
 type AppConfig struct {
-	Redis     RedisConf      `yaml:"redis"`
+	Redis     *RedisConf     `yaml:"redis"`
 	Jwt       JwtConf        `yaml:"jwt"`
 	ComfyUI   *ComfyUIConf   `yaml:"comfy-ui" mapstructure:"comfy-ui"`
 	Bytedance *BytedanceConf `yaml:"bytedance"`
