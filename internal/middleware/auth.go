@@ -21,10 +21,10 @@ const UserPrincipalKey = "UserPrincipal"
 
 type Auth struct {
 	rasKey  *rsa.PublicKey
-	jwtConf conf.JwtConf
+	jwtConf *conf.JwtConf
 }
 
-func NewAuth(jwtConf conf.JwtConf) *Auth {
+func NewAuth(jwtConf *conf.JwtConf) *Auth {
 
 	//读取公钥
 	publicKeyData, err := os.ReadFile(jwtConf.PublicKey)

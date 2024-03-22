@@ -4,6 +4,7 @@ import (
 	"AIPainter-Dispatcher/conf"
 	"AIPainter-Dispatcher/internal/middleware"
 	"AIPainter-Dispatcher/internal/server"
+	"context"
 	"flag"
 	"github.com/gorilla/mux"
 	"github.com/natefinch/lumberjack"
@@ -72,6 +73,18 @@ func initLogger() {
 	}()
 }
 
+// 直接从请求头中获取身份信息
+var identityHandle = func(handler http.Handler) http.Handler {
+	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		newCtx := context.WithValue(request.Context(), middleware.UserPrincipalKey, &middleware.UserPrincipal{
+			Id:   request.Header.Get("x-user-id"),
+			Name: request.Header.Get("x-user-name"),
+			Type: request.Header.Get("x-user-type"),
+		})
+		handler.ServeHTTP(writer, request.WithContext(newCtx))
+	})
+}
+
 func main() {
 	flag.Parse()
 
@@ -83,18 +96,23 @@ func main() {
 
 	//绘图
 	if setting.ComfyUI != nil {
-		log.Printf("开启ComfyUI:%s", setting.ComfyUI.Address)
+
 		cs := router.PathPrefix(setting.ComfyUI.Location).Subrouter()
 		cs.PathPrefix("/").Handler(server.NewComfyUIProxy(setting.ComfyUI))
-		cs.Use(middleware.NewLimiter(setting.ComfyUI.Limit).Handle)
+		if setting.ComfyUI.Limit != nil {
+			cs.Use(middleware.NewLimiter(setting.ComfyUI.Limit).Handle)
+		}
+		log.Printf("开启ComfyUI:%s 限流[%v]", setting.ComfyUI.Address, setting.ComfyUI.Limit != nil)
 	}
 
 	//火山引擎
 	if setting.Bytedance != nil {
-		log.Printf("开启Bytedance:%s", setting.Bytedance.Address)
 		bs := router.PathPrefix(setting.Bytedance.Location).Subrouter()
 		bs.PathPrefix("/").Handler(server.NewBytedanceProxy(setting.Bytedance))
-		bs.Use(middleware.NewLimiter(setting.Bytedance.Limit).Handle)
+		if setting.Bytedance.Limit != nil {
+			bs.Use(middleware.NewLimiter(setting.Bytedance.Limit).Handle)
+		}
+		log.Printf("开启Bytedance:%s 限流[%v]", setting.Bytedance.Address, setting.Bytedance.Limit != nil)
 	}
 
 	//百度
@@ -102,7 +120,10 @@ func main() {
 		log.Printf("开启Baidu:%s", setting.Baidu.Address)
 		bds := router.PathPrefix(setting.Baidu.Location).Subrouter()
 		bds.PathPrefix("/").Handler(server.NewBaiduProxy(setting.Baidu))
-		bds.Use(middleware.NewLimiter(setting.Baidu.Limit).Handle)
+		if setting.Baidu.Limit != nil {
+			bds.Use(middleware.NewLimiter(setting.Baidu.Limit).Handle)
+		}
+		log.Printf("开启Baidu:%s 限流[%v]", setting.Baidu.Address, setting.Baidu.Limit != nil)
 	}
 
 	//OpenAI
@@ -110,12 +131,22 @@ func main() {
 		log.Printf("开启OpenAI:%s", setting.OpenAI.Address)
 		as := router.PathPrefix(setting.OpenAI.Location).Subrouter()
 		as.PathPrefix("/").Handler(server.NewOpenAIProxy(setting.OpenAI))
-		as.Use(middleware.NewLimiter(setting.OpenAI.Limit).Handle)
+		if setting.OpenAI.Limit != nil {
+			as.Use(middleware.NewLimiter(setting.OpenAI.Limit).Handle)
+		}
+		log.Printf("开启OpenAI:%s 限流[%v]", setting.OpenAI.Address, setting.OpenAI.Limit != nil)
 	}
 
-	//认证 + 统计
-	router.Use(middleware.NewAuth(setting.Jwt).Handle)
+	//认证 添加用户上下文
+	if setting.Jwt != nil {
+		log.Println("开启JWT身份认证")
+		router.Use(middleware.NewAuth(setting.Jwt).Handle)
+	} else {
+		router.Use(identityHandle)
+	}
+
 	if setting.Redis != nil {
+		log.Println("开启Redis请求统计")
 		router.Use(middleware.NewStatistics(setting.Redis).Handle)
 	}
 

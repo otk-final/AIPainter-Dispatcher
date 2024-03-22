@@ -1,6 +1,6 @@
 ### Chat
-POST http://localhost:18080/openai/v1/chat/completions
-Authorization: xxx-xyz
+POST http://45.78.59.198:18080/openai/v1/chat/completions
+#Authorization: xxx-xyz
 Content-Type: application/json
 
 {

@@ -17,10 +17,10 @@ type Limiter struct {
 	cache   *expirable.LRU[string, *rate.Limiter]
 	router  *mux.Router
 	matcher *mux.RouteMatch
-	conf    conf.LimitConf
+	conf    *conf.LimitConf
 }
 
-func NewLimiter(conf conf.LimitConf) *Limiter {
+func NewLimiter(conf *conf.LimitConf) *Limiter {
 	//路径匹配
 	r := mux.NewRouter()
 	lo.ForEach(conf.Predicates, func(item string, index int) {
